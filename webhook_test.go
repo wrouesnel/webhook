@@ -637,4 +637,8 @@ env: HOOK_head_commit.timestamp=2013-03-12T08:14:29-07:00
 	{"don't capture output on error by default", "capture-command-output-on-error-not-by-default", nil, `{}`, false, http.StatusInternalServerError, `Error occurred while executing the hook's command. Please check your logs for more details.`},
 	{"capture output on error with extra flag set", "capture-command-output-on-error-yes-with-extra-flag", nil, `{}`, false, http.StatusInternalServerError, `arg: exit=1
 `},
+	{"streaming response yields stdout only", "stream-stdout-in-response", nil, `{}`, false, http.StatusOK, `arg: exit=0 stream=both
+`},
+	{"streaming response with an error yields stderr", "stream-stderr-in-response-on-error", nil, `{}`, false, http.StatusInternalServerError, `arg: exit=1 stream=stderr
+`},
 }

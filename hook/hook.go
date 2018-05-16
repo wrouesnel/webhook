@@ -387,7 +387,6 @@ type Hook struct {
 	CaptureCommandOutputOnError         bool            `json:"include-command-output-in-response-on-error,omitempty"`
 	StreamCommandStdout					bool			`json:"stream-stdout-in-response,omitempty"`
 	StreamCommandStderrOnError			bool			`json:"stream-stderr-in-response-on-error,omitempty"`
-	//KillCommandOnWriteError				bool			`json:"kill-command-on-write-error,omitempty"`
 	StreamCommandKillGraceSecs			float64			`json:"stream-command-kill-grace-period-seconds,omitempty"`
 	PassEnvironmentToCommand            []Argument      `json:"pass-environment-to-command,omitempty"`
 	PassArgumentsToCommand              []Argument      `json:"pass-arguments-to-command,omitempty"`

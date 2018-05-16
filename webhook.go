@@ -236,10 +236,6 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[%s] incoming HTTP request from %s\n", rid, r.RemoteAddr)
 
-	for _, responseHeader := range responseHeaders {
-		w.Header().Set(responseHeader.Name, responseHeader.Value)
-	}
-
 	id := mux.Vars(r)["id"]
 
 	matchedHook := matchLoadedHook(id)
@@ -345,6 +341,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	stdoutRdr, stderrRdr, errCh := handleHook(ctx, matchedHook, rid, &headers, &query, &payload, &body)
 
 	if matchedHook.StreamCommandStdout {
+		log.Printf("[%s] Hook (%s) is a streaming command hook\n", rid, matchedHook.ID)
 		// Collect stderr to avoid blocking processes and emit it as a string
 		stderrRdy := make(chan string, 1)
 		go func() {
@@ -362,17 +359,18 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Streaming output should commence as soon as the command execution tries to write any data
 		firstByte := make([]byte,1)
-		_, err := stdoutRdr.Read(firstByte)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+		_, fbErr := stdoutRdr.Read(firstByte)
+		if fbErr != nil && fbErr != io.EOF {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "Error occurred while trying to read from the process's first byte. Please check your logs for more details.")
-		}
-
-		// Did the process throw an error before we read this byte?
-		select {
-		case err := <- errCh:
-			if err != nil {
+			log.Printf("[%s] Hook error while reading first byte: %v\n", rid, err)
+			return
+		} else if fbErr == io.EOF {
+			log.Printf("[%s] EOF from hook stdout while reading first byte. Waiting for program exit status\n", rid)
+			if err := <- errCh; err != nil {
+				log.Printf("[%s] Hook (%s) returned an error before the first byte. Collecting stderr and failing.\n", rid, matchedHook.ID)
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 				w.WriteHeader(http.StatusInternalServerError)
 				if matchedHook.StreamCommandStderrOnError {
 					// Wait for the stderr buffer to finish collecting
@@ -382,23 +380,21 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 				} else {
-					w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 					fmt.Fprintf(w, "Error occurred while executing the hooks command. Please check your logs for more details.")
 				}
 				return	// Cannot proceed beyond here
 			}
-		default:
-			// no error - continue
+			// early EOF, but program exited successfully so stream as normal.
 		}
-
-		// Got the first byte (or possibly nothing) successfully. Write the success header, then commence
-		// streaming.
-		w.WriteHeader(http.StatusOK)
 
 		// Write user success headers
 		for _, responseHeader := range matchedHook.ResponseHeaders {
 			w.Header().Set(responseHeader.Name, responseHeader.Value)
 		}
+
+		// Got the first byte (or possibly nothing) successfully. Write the success header, then commence
+		// streaming.
+		w.WriteHeader(http.StatusOK)
 
 		if _, err := w.Write(firstByte); err != nil {
 			// Hard fail, client has disconnected or otherwise we can't continue.
@@ -418,6 +414,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf(msg)
 
 	} else {
+		log.Printf("[%s] Hook (%s) is a conventional command hook\n", rid, matchedHook.ID)
 		// Don't break the original API and just combine the streams (specifically, kick off two readers which
 		// break on newlines and the emit that data in temporal order to the output buffer.
 		out := combinedOutput(stdoutRdr, stderrRdr)
@@ -426,13 +423,15 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := <-errCh
 
+		log.Printf("[%s] got command execution result: %v", rid, err)
+
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
-			w.WriteHeader(http.StatusOK)
 			for _, responseHeader := range matchedHook.ResponseHeaders {
 				w.Header().Set(responseHeader.Name, responseHeader.Value)
 			}
+			w.WriteHeader(http.StatusOK)
 		}
 
 		if matchedHook.CaptureCommandOutput {
@@ -584,9 +583,10 @@ body *[]byte) (io.Reader, io.Reader, <-chan error) {
 
 	// Spawn a goroutine to wait for the command to end supply errors
 	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			log.Printf("[%s] error occurred: %+v\n", rid, err)
+		resultErr := cmd.Wait()
+		close(doneCh)	// Close the doneCh immediately so handlers exit correctly.
+		if resultErr != nil {
+			log.Printf("[%s] error occurred: %+v\n", rid, resultErr)
 		}
 
 		for i := range files {
@@ -601,9 +601,8 @@ body *[]byte) (io.Reader, io.Reader, <-chan error) {
 
 		log.Printf("[%s] finished handling %s\n", rid, h.ID)
 
-		errCh <- err
+		errCh <- resultErr
 		close(errCh)
-		close(doneCh)
 	}()
 
 	// Spawn a goroutine which checks if the context is ever cancelled, and sends SIGTERM / SIGKILL if it is
@@ -612,6 +611,7 @@ body *[]byte) (io.Reader, io.Reader, <-chan error) {
 
 		select {
 		case <- ctxDone:
+			log.Printf("[%s] Context done (request finished) - killing process.", rid)
 			// AFAIK this works on Win/Mac/Unix - where does it not work?
 			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 				log.Printf("[%s] error sending SIGTERM to process for %s: %s\n", rid, h.ID, err)

@@ -97,13 +97,15 @@
   execute-command: '{{ .Hookecho }}'
   include-command-output-in-response: true
   include-command-output-in-response-on-error: true
-- id: steam-stdout-in-response
+- id: stream-stdout-in-response
   execute-command: '{{ .Hookecho }}'
   stream-stdout-in-response: true
   pass-arguments-to-command:
   - source: string
     name: exit=0
-- id: steam-stderr-in-response-on-error
+  - source: string
+    name: stream=both
+- id: stream-stderr-in-response-on-error
   execute-command: '{{ .Hookecho }}'
   stream-stdout-in-response: true
   stream-stderr-in-response-on-error: true
