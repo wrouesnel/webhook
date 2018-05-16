@@ -180,5 +180,32 @@
     "execute-command": "{{ .Hookecho }}",
     "include-command-output-in-response": true,
     "include-command-output-in-response-on-error": true
+  },
+  {
+    "id": "steam-stdout-in-response",
+    "pass-arguments-to-command": [
+      {
+        "source": "string",
+        "name": "exit=0"
+      }
+    ],
+    "execute-command": "{{ .Hookecho }}",
+    "stream-stdout-in-response": true
+  },
+  {
+    "id": "steam-stderr-in-response-on-error",
+    "pass-arguments-to-command": [
+      {
+        "source": "string",
+        "name": "exit=1"
+      },
+      {
+        "source": "string",
+        "name": "stream=stderr"
+      }
+    ],
+    "execute-command": "{{ .Hookecho }}",
+    "stream-stdout-in-response": true,
+    "stream-stderr-in-response-on-error": true
   }
 ]

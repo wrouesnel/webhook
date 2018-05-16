@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/adnanh/webhook/hook"
+	"context"
 )
 
 func TestStaticParams(t *testing.T) {
@@ -41,11 +42,18 @@ func TestStaticParams(t *testing.T) {
 	b := &bytes.Buffer{}
 	log.SetOutput(b)
 
-	s, err := handleHook(spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+	stdout, stderr, errCh := handleHook(context.Background(), spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+
+	s := combinedOutput(stdout, stderr)
+	err := <- errCh
+
 	if err != nil {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
-	matched, _ := regexp.MatchString("(?s).*command output: passed.*static-params-ok", b.String())
+
+	fmt.Println(b.String())
+
+	matched, _ := regexp.MatchString("(?s).*finished handling static-params-ok", b.String())
 	if !matched {
 		t.Fatalf("Unexpected log output:\n%s", b)
 	}
@@ -71,11 +79,15 @@ func TestStaticParams(t *testing.T) {
 	b = &bytes.Buffer{}
 	log.SetOutput(b)
 
-	s, err = handleHook(spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+	stdout, stderr, errCh = handleHook(context.Background(), spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+
+	s = combinedOutput(stdout, stderr)
+	err = <- errCh
+
 	if err != nil {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
-	matched, _ = regexp.MatchString("(?s)command output: .*static-params-name-space", b.String())
+	matched, _ = regexp.MatchString("(?s)finished handling .*static-params-name-space", b.String())
 	if !matched {
 		t.Fatalf("Unexpected log output:\n%sn", b)
 	}
@@ -95,7 +107,11 @@ func TestStaticParams(t *testing.T) {
 	b = &bytes.Buffer{}
 	log.SetOutput(b)
 
-	s, err = handleHook(spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+	stdout, stderr, errCh = handleHook(context.Background(), spHook, "test", &spHeaders, &map[string]interface{}{}, &map[string]interface{}{}, &[]byte{})
+
+	s = combinedOutput(stdout, stderr)
+	err = <- errCh
+
 	if err == nil {
 		t.Fatalf("Error expected, but none returned: %s\n", s)
 	}
@@ -120,7 +136,7 @@ func TestWebhook(t *testing.T) {
 		args := []string{fmt.Sprintf("-hooks=%s", config), fmt.Sprintf("-ip=%s", ip), fmt.Sprintf("-port=%s", port), "-verbose"}
 
 		cmd := exec.Command(webhook, args...)
-		//cmd.Stderr = os.Stderr // uncomment to see verbose output
+		cmd.Stderr = os.Stderr // uncomment to see verbose output
 		cmd.Env = webhookEnv()
 		cmd.Args[0] = "webhook"
 		if err := cmd.Start(); err != nil {
@@ -186,8 +202,8 @@ func buildHookecho(t *testing.T) (bin string, cleanup func()) {
 	}
 
 	cmd := exec.Command("go", "build", "-o", bin, "test/hookecho.go")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Building hookecho: %v", err)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Building hookecho: %v\n%s", err, out)
 	}
 
 	return bin, func() { os.RemoveAll(tmp) }
