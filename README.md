@@ -1,3 +1,13 @@
+[![Build Status](https://travis-ci.org/wrouesnel/webhook.svg?branch=master)](https://travis-ci.org/wrouesnel/webhook)
+[![Coverage Status](https://coveralls.io/repos/github/wrouesnel/webhook/badge.svg?branch=master)](https://coveralls.io/github/wrouesnel/webhook?branch=master)
+
+# This is a fork
+
+The master branch of this repo has been integrated with Travis to keep a running
+build of my changes.
+
+Currently it is building the streaming responses branch (tagged as `-streaming_responses`)
+
 # What is webhook?
 
  <img src="https://github.com/adnanh/webhook/raw/development/docs/logo/logo-128x128.png" alt="Webhook" align="left" />

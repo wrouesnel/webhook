@@ -13,13 +13,14 @@ release: clean deps
 		do \
 			echo "Building $$os-$$arch"; \
 			mkdir -p build/webhook-$$os-$$arch/; \
-			GOOS=$$os GOARCH=$$arch go build -o build/webhook-$$os-$$arch/webhook; \
+			GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o build/webhook-$$os-$$arch/webhook; \
 			tar cz -C build -f build/webhook-$$os-$$arch.tar.gz webhook-$$os-$$arch; \
 		done \
 	done
 
 test: deps
-	go test ./...
+	mkdir -p .cover
+	go test -covermode=count -cover -coverprofile .cover/cover.out ./...
 
 deps:
 	go get -d -v -t ./...
