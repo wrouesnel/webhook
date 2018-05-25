@@ -1,5 +1,7 @@
-.idea
-.cover
-coverage
-webhook
+/.idea
+/.cover
+/coverage
+/webhook
 /test/hookecho
+/bin/*
+/build/*

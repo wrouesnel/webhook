@@ -1,0 +1,21 @@
+language: go
+go:
+- '1.10'
+go_import_path: github.com/adnanh/webhook
+before_install:
+- go get -v github.com/mattn/goveralls
+script:
+- make test
+- make
+after_success:
+- "$HOME/gopath/bin/goveralls -coverprofile=.cover/cover.out -service=travis-ci"
+deploy:
+  provider: releases
+  api_key:
+    secure: NGwnUkAxSCK3inmQPn0PjY84sdhmlI0EewOBxO4upvF1DsY5p5Orf+k9fBR7FskQLofJ4D2oTNa4qRueklsUDR0kijg+/xsfyIzosA6GAxa+t1gqGy4LHd3bqzKmIfQTkuMtHfnmFczdYk5lynzXdr7A8JQk2Xxa1AmPd03Hqia67SS0buskUYh0P/7RPy5q7s3pL7WT2ll2uUru9tEKUTiVwDPA+BOgjhAJa7d5E2GDw2ZShlXDi3ykpME0tKnmp/iaMQpgdcFODi/wcyHb2l9gPmTha4uB9V+1SUUZwt8Ier8G7780RRchZNrZDFSiQekPEXnCNNcuNLTZ2YzWs2jj5BefYb3q/u2eIYepbsR+Zqyz45Gm9s1SQB1wCKT9oxV5QJASoRrB7PMraIu6fkk8giRGNCF9YvaGLQSYawmVx75LT3tPH44KWV6Ui1X+Ar54xlTuLL3QJt+49xrTaJiAIiUm3UP95lh/glRyYELloqBalI2QW7mE7a3ICLwVjUTzQ0lLuFebC3HHYElOpjinMfK7WTKPIxtfzPqUvU78woPAInf6B02VJnarfKx6QUC1MUuJQRXqgFMPRXtF1KTC9LTcpHnn6OU944iD9CeFowzX6i7pZkCgYSCaNN4CBf8ozSm6tXGGE5NrXUq3HtqnzR9Po/oQkcAv8gp0QSc=
+  file: build/*.tar.gz
+  file_glob: true
+  on:
+    tags: true
+    repo: wrouesnel/webhook
+
